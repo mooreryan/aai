@@ -12,14 +12,16 @@ def none_exist? fnames
   fnames.none? { |fname| File.exists? fname }
 end
 
+def ls_test_dir
+  STDERR.puts `ls #{SpecHelper::TEST_DIR}`
+end
+
 RSpec.describe Aai do
   it "has a version number" do
     expect(Aai::VERSION).not_to be nil
   end
 
   let(:klass) { Class.extend Aai }
-  let(:in_fastas) { SpecHelper::IN_FNAMES }
-  let(:blast_dbs) { in_fastas.map { |fname| fname + "....aai" } }
   let(:seq_lengths) {
     { "g1____g1_o1" => 65,
       "g1____g1_o2" => 65,
@@ -33,12 +35,13 @@ RSpec.describe Aai do
   }
 
   before :each do
-    delete_all SpecHelper::BLAST_DBS
+    delete_all Dir.glob(File.join(SpecHelper::TEST_DIR, "*....aai.p*"))
     delete_all SpecHelper::CLEAN_FNAMES
     delete_all SpecHelper::BTAB_FILES
   end
 
   after :each do
+    delete_all Dir.glob(File.join(SpecHelper::TEST_DIR, "*....aai.p*"))
     delete_all SpecHelper::BLAST_DBS
     delete_all SpecHelper::CLEAN_FNAMES
     delete_all SpecHelper::BTAB_FILES
@@ -46,17 +49,25 @@ RSpec.describe Aai do
 
   describe "#blast_permutations!" do
     it "blasts all permutations of infiles" do
-      klass.make_blastdbs! in_fastas
+      seq_lenghts, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
 
-      klass.blast_permutations! in_fastas, blast_dbs
+      blast_db_basenames = klass.make_blastdbs! clean_fnames
+
+      klass.blast_permutations! clean_fnames,
+                                blast_db_basenames
 
       expect(all_exist? SpecHelper::BTAB_FILES).to be true
     end
 
     it "doesn't do self blasts" do
-      klass.make_blastdbs! in_fastas
+      seq_lenghts, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
 
-      klass.blast_permutations! in_fastas, blast_dbs
+      blast_db_basenames = klass.make_blastdbs! clean_fnames
+
+      # puts `ls #{SpecHelper::TEST_DIR}`
+
+      klass.blast_permutations! clean_fnames,
+                                blast_db_basenames
 
       expect(none_exist? SpecHelper::SELF_BTABS).to be true
     end
@@ -64,25 +75,31 @@ RSpec.describe Aai do
 
   describe "#make_blastdbs!" do
     it "makes a blast db for each infile" do
-      klass.make_blastdbs! in_fastas
+      blast_db_basenames = klass.make_blastdbs! SpecHelper::IN_FNAMES
 
-      expect(all_exist? SpecHelper::BLAST_DBS).to be true
+      outfiles = blast_db_basenames.map do |fname|
+        ["#{fname}.phr",
+         "#{fname}.pin",
+         "#{fname}.psq"]
+      end.flatten
+
+      expect(all_exist? outfiles).to be true
     end
 
     it "returns the blast db basenames" do
-      expect(klass.make_blastdbs! in_fastas).
-        to eq blast_dbs
+      expect(klass.make_blastdbs! SpecHelper::IN_FNAMES).
+        to eq SpecHelper::IN_FNAMES.map { |fname| fname + "....aai" }
     end
   end
 
   describe "#process_input_seqs!" do
     it "returns an HT of seq lengths, and the clean file names" do
-      expect(klass.process_input_seqs! in_fastas).
+      expect(klass.process_input_seqs! SpecHelper::IN_FNAMES).
         to eq [seq_lengths, SpecHelper::CLEAN_FNAMES]
     end
 
     it "writes new files with clean header names" do
-      klass.process_input_seqs! in_fastas
+      klass.process_input_seqs! SpecHelper::IN_FNAMES
 
       headers = []
       SpecHelper::CLEAN_FNAMES.each do |fname|

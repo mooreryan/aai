@@ -19,11 +19,15 @@ module SpecHelper
   G2_FNAME = File.join TEST_DIR, "g2.fa"
   G3_FNAME = File.join TEST_DIR, "g3.fa"
   IN_FNAMES = [G1_FNAME, G2_FNAME, G3_FNAME]
-  CLEAN_FNAMES = IN_FNAMES.map { |fname| fname + ".aai.clean" }
+  CLEAN_FNAMES = IN_FNAMES.map { |fname| fname + "_aai_clean" }
 
-  BLAST_DBS = IN_FNAMES.map { |fname| ["#{fname}....aai.phr",
-                                       "#{fname}....aai.pin",
-                                       "#{fname}....aai.psq"] }.flatten
+  # BLAST_DBS = CLEAN_FNAMES.map { |fname| ["#{fname}....aai.phr",
+  #                                         "#{fname}....aai.pin",
+  #                                         "#{fname}....aai.psq"] }.flatten
+
+  BLAST_DBS = Dir.glob(File.join(TEST_DIR, "*....aai.p*"))
+
+  BLAST_DB_BASENAMES = CLEAN_FNAMES.map { |fname| fname + "....aai" }
   BTAB_FILES = %w[g1 g2 g3].permutation(2).map do |g1, g2|
     File.join TEST_DIR, "#{g1}____#{g2}.aai_blastp"
   end
