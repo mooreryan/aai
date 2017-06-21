@@ -113,7 +113,7 @@ RSpec.describe Aai do
 
   describe "#blast_permutations!" do
     it "blasts all permutations of infiles" do
-      seq_lenghts, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
+      seq_lengths, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
 
       blast_db_basenames = klass.make_blastdbs! clean_fnames
 
@@ -134,6 +134,17 @@ RSpec.describe Aai do
                                 blast_db_basenames
 
       expect(none_exist? SpecHelper::SELF_BTABS).to be true
+    end
+
+    it "returns the names of the btab files" do
+      seq_lengths, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
+
+      blast_db_basenames = klass.make_blastdbs! clean_fnames
+
+      btabs = klass.blast_permutations! clean_fnames,
+                                        blast_db_basenames
+
+      expect(btabs).to eq SpecHelper::BTAB_FILES
     end
   end
 

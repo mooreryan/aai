@@ -56,6 +56,8 @@ module Aai
           "#{outf_names.join " "}"
 
     Process.run_and_time_it! title, cmd
+
+    outf_names
   end
 
   # Make blast dbs given an array of filenames.
