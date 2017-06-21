@@ -15,6 +15,10 @@ module Aai
   BLAST_DB_SEPARATOR = "...."
   BLAST_DB_SUFFIX    = "#{BLAST_DB_SEPARATOR}aai"
 
+  PIDENT_CUTOFF = 70
+  EVALUE_CUTOFF = 1e-3
+  LENGTH_CUTOFF = 70
+
   def blast_permutations! fastas, blast_dbs
     file_permutations = one_way_combinations fastas, blast_dbs, true
     file_permutations = file_permutations.select do |f1, f2|
@@ -102,7 +106,170 @@ module Aai
     [seq_lengths, clean_fnames]
   end
 
+  def get_best_hits fnames
+    best_hits = {}
+    fnames.each do |fname| # blast files
+      File.open(fname, "rt").each_line do |line|
+        ary = line.chomp.split "\t"
+
+        query  = ary[0]
+        target = ary[1]
+        pident = ary[2].to_f
+        length = ary[3].to_f
+        evalue = ary[10].to_f
+
+        query_genome = query.split("____").first
+        query_seq    = query.split("____").last
+
+        target_genome = target.split("____").first
+        target_seq    = target.split("____").last
+
+        hit_info = {
+          query_name: query_seq,
+          target_name: target_seq,
+          query_genome: query_genome,
+          target_genome: target_genome,
+          pident: pident,
+          length: length,
+          evalue: evalue
+        }
+
+        # check if it is a best hit candidate
+        if pident >= PIDENT_CUTOFF &&
+           evalue <= EVALUE_CUTOFF &&
+           length >= LENGTH_CUTOFF # TODO make this ratio instead
+
+          if best_hits.has_key? query_genome
+            if best_hits[query_genome].has_key? query_seq
+              if best_hits[query_genome][query_seq].
+                  has_key?(target_genome)
+                # check if we should replace the best hit?
+                current_best_hit =
+                  best_hits[query_genome][query_seq][target_genome]
+
+                if pident >= current_best_hit[:pident]
+                  best_hits[query_genome][query_seq][target_genome] =
+                    hit_info
+                end
+              else
+                best_hits[query_genome][query_seq][target_genome] =
+                  hit_info
+              end
+            else
+              best_hits[query_genome][query_seq] = {
+                target_genome => hit_info
+              }
+            end
+          else
+            best_hits[query_genome] = {
+              query_seq => {
+                target_genome => hit_info
+              }
+            }
+          end
+        end
+      end
+    end
+
+    best_hits
+  end
+
+  def one_way_aai best_hits
+    one_way_best_hits(best_hits).map do |genome_pair, best_hits|
+      [genome_pair, best_hits.map { |hit| hit[:pident] }.reduce(:+) /
+                    best_hits.length.to_f]
+    end.to_h
+  end
+
+  def two_way_aai best_hits
+    # the pair key is the [g1, g2].sort
+
+    two_way_aai = {}
+
+    one_way_hits = one_way_best_hits best_hits
+    genome_pair_keys = one_way_hits.keys.map { |pair| pair.sort }.uniq
+
+    genome_pair_keys.each do |pair_key|
+      AbortIf.abort_unless one_way_hits.has_key?(pair_key) &&
+                           one_way_hits.has_key?(pair_key.reverse),
+                           "Missing keys for #{pair_key}"
+
+      forward_hits = one_way_hits[pair_key]
+      reverse_hits = one_way_hits[pair_key.reverse]
+
+      combinations = one_way_combinations forward_hits, reverse_hits
+
+      two_way_hits = combinations.select do |h1, h2|
+        two_way_hit? h1, h2
+      end
+
+      two_way_hit_info = two_way_hits.map do |h1, h2|
+        { genome_pair: [h1[:query_genome],
+                        h1[:target_genome]].sort,
+          pident: (h1[:pident] + h2[:pident]) / 2.0 }
+      end
+
+      two_way_hit_info.each do |hit|
+        if two_way_aai.has_key? hit[:genome_pair]
+          two_way_aai[hit[:genome_pair]] << hit[:pident]
+        else
+          two_way_aai[hit[:genome_pair]] = [hit[:pident]]
+        end
+      end
+    end
+
+    two_way_aai.map do |genome_pair, pidents|
+      [genome_pair, pidents.reduce(:+) / pidents.length.to_f]
+    end.to_h
+  end
+
+  # Returns an array (enumerable) of aai strings ready to print
+  def aai_strings one_way_aai, two_way_aai
+    aai_strings = {}
+    keys = (one_way_aai.keys + two_way_aai.keys).
+           map { |key| key.sort }.uniq
+
+    keys.each do |key|
+      a_to_b_aai = one_way_aai[key] || "NA"
+      b_to_a_aai = one_way_aai[key.reverse] || "NA"
+      two_way_aai = two_way_aai[key] || "NA"
+
+      aai_strings[key] = [a_to_b_aai,
+                          b_to_a_aai,
+                          two_way_aai]
+    end
+
+    aai_strings.map do |genome_pair, aais|
+      [genome_pair.join("----"),
+       aais.join("\t")].join "\t"
+    end
+  end
+
   private
+
+  def two_way_hit? hit1, hit2
+    hit1[:query_name] == hit2[:target_name] &&
+      hit1[:query_genome] == hit2[:target_genome]
+  end
+
+  def one_way_best_hits best_hits
+    one_way = {}
+
+    best_hits.each do |query_genome, orfs|
+      orfs.each do |orf, target_genomes|
+        target_genomes.each do |target_genome, best_hit|
+          genome_pair = [query_genome, target_genome]
+          if one_way.has_key? genome_pair
+            one_way[genome_pair] << best_hit
+          else
+            one_way[genome_pair] = [best_hit]
+          end
+        end
+      end
+    end
+
+    one_way
+  end
 
   def genome_from_fname fname
     fname_no_aai = fname.split(BLAST_DB_SEPARATOR).first

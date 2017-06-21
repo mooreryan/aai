@@ -34,6 +34,70 @@ RSpec.describe Aai do
       "g3____g3_o3" => 65,}
   }
 
+  # Genomes have many ORFs
+  # ORFs have zero or one best hits from each genome
+  let(:best_hits) do
+    {
+      "g1" => { # genome 1
+        "o1" => { # ORF 1 from genome 1
+          "g2" => { # Best hit of ORF from genome 1 in genome 2
+            query_name: "o1",
+            target_name: "o1", # description of best hit
+            query_genome: "g1",
+            target_genome: "g2",
+            pident: 80,
+            length: 100,
+            evalue: 1e-3
+          }
+        },
+        "o2" => { # ORF 2 from genome 1
+          "g2" => { # ORF 2 best hit in genome 2
+            query_name: "o2",
+            target_name: "o2",
+            query_genome: "g1",
+            target_genome: "g2",
+            pident: 100,
+            length: 100,
+            evalue: 1e-3
+          }
+        }
+      },
+      "g2" => { # genome 2
+        "o1" => { # orf 1 in genome 2
+          "g1" => { # orf 1 in genome 2 best hit in genome 1
+            query_name: "o1",
+            target_name: "o3", # hit description
+            query_genome: "g2",
+            target_genome: "g1",
+            pident: 100,
+            length: 100,
+            evalue: 1e-3,
+          }
+        },
+        "o2" => { # orf 2 in genome 2
+          "g1" => { # orf 2 in genome 2 its best hit in genome 1
+            query_name: "o2",
+            target_name: "o2", # description of hit
+            query_genome: "g2",
+            target_genome: "g1",
+            pident: 90,
+            length: 100,
+            evalue: 1e-3,
+          }
+        }
+      }
+    }
+  end
+
+  let(:one_way_aai) do
+    { %w[g1 g2] => 90,
+      %w[g2 g1] => 95, }
+  end
+
+  let(:two_way_aai) do
+    { %w[g1 g2] => 95 }
+  end
+
   before :each do
     delete_all Dir.glob(File.join(SpecHelper::TEST_DIR, "*....aai.p*"))
     delete_all SpecHelper::CLEAN_FNAMES
@@ -109,6 +173,37 @@ RSpec.describe Aai do
       end
 
       expect(headers).to eq seq_lengths.keys
+    end
+  end
+
+  describe "#get_best_hits" do
+    it "returns the best hits for each genome" do
+      g1_g2_btab = File.join SpecHelper::TEST_DIR, "g1.g2.btab"
+      g2_g1_btab = File.join SpecHelper::TEST_DIR, "g2.g1.btab"
+
+      expect(klass.get_best_hits [g1_g2_btab, g2_g1_btab]).
+        to eq best_hits
+    end
+  end
+
+  describe "#one_way_aai" do
+    it "calculates one way aai" do
+      expect(klass.one_way_aai best_hits).to eq one_way_aai
+    end
+  end
+
+  describe "#two_way_aai" do
+    it "calculates two way aai" do
+      expect(klass.two_way_aai best_hits).to eq two_way_aai
+    end
+  end
+
+  describe "#aai_strings" do
+    it "prints the aai info" do
+      aai_string = [["g1----g2", 90, 95, 95].join("\t")]
+
+      expect(klass.aai_strings one_way_aai, two_way_aai).
+        to eq aai_string
     end
   end
 end
