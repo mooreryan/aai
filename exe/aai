@@ -38,6 +38,10 @@ end
 abort_if opts[:infiles].nil? || opts[:infiles].empty?,
          "No infiles given"
 
+Aai.check_command "blastp"
+Aai.check_command "makeblastdb"
+Aai.check_command "parallel"
+
 Aai.check_files opts[:infiles]
 
 FileUtils.mkdir_p opts[:outdir]
