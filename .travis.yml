@@ -6,4 +6,12 @@ rvm:
   - 2.2
   - 2.3
   - 2.4
-before_install: gem install bundler -v 1.14.6
+
+addons:
+  apt:
+    packages:
+    - parallel
+    - ncbi-blast+
+
+before_install:
+  - gem install bundler -v 1.14.6

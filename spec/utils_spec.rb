@@ -75,4 +75,25 @@ RSpec.describe Aai::Utils do
       end
     end
   end
+
+  describe "#command?" do
+    it "returns nil if file is not on path" do
+      binary = "arsotienarsotine"
+
+      expect(klass.command? binary).to be nil
+    end
+
+    it "returns nil if file is on path but not executable" do
+      binary = "arstoienarstoien1234123456789"
+      `export $PATH:#{binary}`
+
+      expect(klass.command? binary).to be nil
+    end
+
+    it "returns the path to program its on path and is executable" do
+      binary = "ruby"
+
+      expect(klass.command? binary).to be_truthy
+    end
+  end
 end
