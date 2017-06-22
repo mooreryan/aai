@@ -51,7 +51,8 @@ module Aai
       path = command? cmd
 
       AbortIf.abort_unless path,
-                           "MIssing #{cmd} command. Is it on your path?"
+                           "Missing #{cmd} command. " +
+                           "Is it executable and on your path?"
 
       path
     end

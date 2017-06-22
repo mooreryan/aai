@@ -85,7 +85,7 @@ RSpec.describe Aai::Utils do
 
     it "returns nil if file is on path but not executable" do
       cmd = "arstoienarstoien1234123456789"
-      `export $PATH:#{cmd}`
+      `export PATH=$PATH:#{cmd}`
 
       expect(klass.command? cmd).to be nil
     end

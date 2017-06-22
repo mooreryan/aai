@@ -48,12 +48,7 @@ module Aai
     end
 
     title = "Running blast jobs"
-    cmd = "parallel --link blastp -outfmt 6 " +
-          "-query {1} -db {2} " +
-          "-out {3} -evalue 1e-3 " +
-          "::: #{first_files.join " "} ::: " +
-          "#{second_files.join " "} ::: " +
-          "#{outf_names.join " "}"
+    cmd = %Q{parallel --xapply "blastp -outfmt 6 -query {1} -db {2} -out {3} -evalue 1e-3" ::: #{first_files.join " "} ::: #{second_files.join " "} ::: #{outf_names.join " "}}
 
     Process.run_and_time_it! title, cmd
 
@@ -70,9 +65,7 @@ module Aai
     outfiles = fnames.map { |fname| fname + suffix }
 
     title = "Making blast databases"
-    cmd = "parallel makeblastdb -in {} " +
-          "-out {}#{BLAST_DB_SUFFIX} -dbtype prot " +
-          "::: #{fnames.join " "}"
+    cmd = %Q{parallel "makeblastdb -in {} -out {}#{BLAST_DB_SUFFIX} -dbtype prot" ::: #{fnames.join " "}}
 
     Process.run_and_time_it! title, cmd
 
