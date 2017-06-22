@@ -46,5 +46,14 @@ module Aai
 
       return nil
     end
+
+    def check_command cmd
+      path = command? cmd
+
+      AbortIf.abort_unless path,
+                           "MIssing #{cmd} command. Is it on your path?"
+
+      path
+    end
   end
 end

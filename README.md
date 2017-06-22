@@ -4,9 +4,24 @@
 [![Coverage Status](https://coveralls.io/repos/github/mooreryan/aai/badge.svg?branch=master)](https://coveralls.io/github/mooreryan/aai?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Calculate Seanie's multi-genome (or genome bin) amino acid similarity.
+Calculate Seanie's multi-genome (or genome bin, or metagenome sample) amino acid similarity.
+
+## Requirements
+
+The following programs must be installed and on your `PATH` for `aai` to work.
+
+- GNU Parallel
+- NCBI Blast suite
 
 ## Installation
+
+### Install with RubyGems
+
+Run
+
+    $ gem install aai
+
+### If bundling aai in another ruby program
 
 Add this line to your application's Gemfile:
 
@@ -18,18 +33,24 @@ And then execute:
 
     $ bundle
 
-Or install it yourself as:
-
-    $ gem install aai
-
-## Requirements
-
-- GNU Parallel
-- NCBI Blast suite
-
 ## Usage
 
-TODO: Write usage instructions here
+### Example
+
+```
+$ ruby exe/aai.rb --infiles *.fa
+```
+
+### Options
+
+```
+Options:
+  -i, --infiles=<s+>    Input files
+  -o, --outdir=<s>      Output directory (default: .)
+  -b, --basename=<s>    Base name for output file (default: aai_scores)
+  -v, --version         Print version and exit
+  -h, --help            Show this message
+```
 
 ## Development
 
