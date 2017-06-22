@@ -15,9 +15,9 @@ module Aai
   BLAST_DB_SEPARATOR = "...."
   BLAST_DB_SUFFIX    = "#{BLAST_DB_SEPARATOR}aai"
 
-  PIDENT_CUTOFF = 70
+  PIDENT_CUTOFF = 30
   EVALUE_CUTOFF = 1e-3
-  LENGTH_CUTOFF = 70
+  LENGTH_CUTOFF = 70 # actually is 70 percent
 
   def blast_permutations! fastas, blast_dbs
     file_permutations = one_way_combinations fastas, blast_dbs, true
@@ -108,7 +108,7 @@ module Aai
     [seq_lengths, clean_fnames]
   end
 
-  def get_best_hits fnames
+  def get_best_hits fnames, seq_lengths
     best_hits = {}
     fnames.each do |fname| # blast files
       File.open(fname, "rt").each_line do |line|
@@ -126,20 +126,29 @@ module Aai
         target_genome = target.split("____").first
         target_seq    = target.split("____").last
 
+        seq_length_key = "#{query_genome}____#{query_seq}"
+
+        AbortIf.abort_unless seq_lengths.has_key?(seq_length_key),
+                             "#{seq_length_key} is missing from " +
+                             "seq_lengths"
+
+        query_length = seq_lengths[seq_length_key].to_f
+        length_percent = length / query_length * 100
+
         hit_info = {
           query_name: query_seq,
           target_name: target_seq,
           query_genome: query_genome,
           target_genome: target_genome,
           pident: pident,
-          length: length,
+          length: length_percent,
           evalue: evalue
         }
 
         # check if it is a best hit candidate
         if pident >= PIDENT_CUTOFF &&
            evalue <= EVALUE_CUTOFF &&
-           length >= LENGTH_CUTOFF # TODO make this ratio instead
+           length_percent >= LENGTH_CUTOFF
 
           if best_hits.has_key? query_genome
             if best_hits[query_genome].has_key? query_seq
@@ -169,6 +178,8 @@ module Aai
               }
             }
           end
+        else
+          # pass
         end
       end
     end
@@ -234,11 +245,11 @@ module Aai
     keys.each do |key|
       a_to_b_aai = one_way_aai[key] || "NA"
       b_to_a_aai = one_way_aai[key.reverse] || "NA"
-      two_way_aai = two_way_aai[key] || "NA"
+      two_way = two_way_aai[key] || "NA"
 
       aai_strings[key] = [a_to_b_aai,
                           b_to_a_aai,
-                          two_way_aai]
+                          two_way]
     end
 
     aai_strings.map do |genome_pair, aais|

@@ -192,8 +192,18 @@ RSpec.describe Aai do
       g1_g2_btab = File.join SpecHelper::TEST_DIR, "g1.g2.btab"
       g2_g1_btab = File.join SpecHelper::TEST_DIR, "g2.g1.btab"
 
-      expect(klass.get_best_hits [g1_g2_btab, g2_g1_btab]).
-        to eq best_hits
+      these_seq_lengths = { "g1____o1" => 65,
+                            "g1____o2" => 65,
+                            "g1____o3" => 63,
+
+                            "g2____o1" => 65,
+                            "g2____o2" => 65,
+                            "g2____o3" => 63 }
+
+      calc_best_hits = klass.get_best_hits [g1_g2_btab, g2_g1_btab],
+                                           these_seq_lengths
+
+      expect(calc_best_hits).to eq best_hits
     end
   end
 
