@@ -10,7 +10,6 @@ rvm:
 addons:
   apt:
     packages:
-    - parallel
     - ncbi-blast+
 
 before_install:
