@@ -1,7 +1,5 @@
 # AAI
 
-[![Build Status](https://travis-ci.org/mooreryan/aai.svg?branch=master)](https://travis-ci.org/mooreryan/aai)
-[![Coverage Status](https://coveralls.io/repos/github/mooreryan/aai/badge.svg?branch=master)](https://coveralls.io/github/mooreryan/aai?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Calculate Seanie's multi-genome (or genome bin, or metagenome sample) amino acid similarity.
@@ -10,8 +8,13 @@ Calculate Seanie's multi-genome (or genome bin, or metagenome sample) amino acid
 
 The following programs must be installed and on your `PATH` for `aai` to work.
 
-- GNU Parallel
-- NCBI Blast suite
+For versions `>= 0.4`
+
+- [DIAMOND](https://github.com/bbuchfink/diamond/)
+
+For versions `< 0.4`
+
+- [NCBI Blast suite](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
 
 ## Installation
 
@@ -38,13 +41,14 @@ And then execute:
 ### Example
 
 ```
-$ ruby exe/aai.rb --infiles *.fa
+$ ruby exe/aai.rb --infiles *.fa --outdir aai_output
 ```
 
 ### Options
 
 ```
 Options:
+  -c, --cpus=<i>        Number of CPUs to use (default: 1)
   -i, --infiles=<s+>    Input files
   -o, --outdir=<s>      Output directory (default: .)
   -b, --basename=<s>    Base name for output file (default: aai_scores)

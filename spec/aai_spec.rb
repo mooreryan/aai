@@ -153,10 +153,8 @@ RSpec.describe Aai do
       blast_db_basenames = klass.make_blastdbs! SpecHelper::IN_FNAMES
 
       outfiles = blast_db_basenames.map do |fname|
-        ["#{fname}.phr",
-         "#{fname}.pin",
-         "#{fname}.psq"]
-      end.flatten
+        "#{fname}.dmnd"
+      end
 
       expect(all_exist? outfiles).to be true
     end

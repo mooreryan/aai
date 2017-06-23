@@ -59,7 +59,8 @@ module Aai
         db    = infiles[1]
         out   = infiles[2]
 
-        cmd = "blastp -outfmt 6 -query #{query} -db #{db} -out #{out} -evalue #{EVALUE_CUTOFF}"
+        # cmd = "blastp -outfmt 6 -query #{query} -db #{db} -out #{out} -evalue #{EVALUE_CUTOFF}"
+        cmd = "diamond blastp --threads 1 --outfmt 6 --query #{query} --db #{db} --out #{out} --evalue #{EVALUE_CUTOFF}"
         Process.run_it! cmd
       end
     end
@@ -79,7 +80,8 @@ module Aai
 
     Time.time_it "Making blast databases" do
       Parallel.each(fnames, in_processes: cpus) do |fname|
-        cmd = "makeblastdb -in #{fname} -out #{fname}#{BLAST_DB_SUFFIX} -dbtype prot"
+        # cmd = "makeblastdb -in #{fname} -out #{fname}#{BLAST_DB_SUFFIX} -dbtype prot"
+        cmd = "diamond makedb --threads 1 --in #{fname} --db #{fname}#{BLAST_DB_SUFFIX}"
 
         Process.run_it! cmd
       end
