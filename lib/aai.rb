@@ -1,5 +1,6 @@
 require "abort_if"
 require "systemu"
+require "parallel"
 require "parse_fasta"
 
 require "aai/core_extensions"
@@ -8,6 +9,7 @@ require "aai/version"
 
 AbortIf.extend AbortIf
 Process.extend Aai::CoreExtensions::Process
+Time.extend Aai::CoreExtensions::Time
 
 module Aai
   include Utils
@@ -47,10 +49,20 @@ module Aai
       "#{f1}____#{f2}.aai_blastp"
     end
 
-    title = "Running blast jobs"
-    cmd = %Q{parallel --xapply "blastp -outfmt 6 -query {1} -db {2} -out {3} -evalue 1e-3" ::: #{first_files.join " "} ::: #{second_files.join " "} ::: #{outf_names.join " "}}
+    parallel_args = first_files.length.times.map do |idx|
+      [first_files[idx], second_files[idx], outf_names[idx]]
+    end
 
-    Process.run_and_time_it! title, cmd
+    Time.time_it "Running blast jobs" do
+      Parallel.each(parallel_args) do |infiles|
+        query = infiles[0]
+        db    = infiles[1]
+        out   = infiles[2]
+
+        cmd = "blastp -outfmt 6 -query #{query} -db #{db} -out #{out} -evalue #{EVALUE_CUTOFF}"
+        Process.run_it! cmd
+      end
+    end
 
     outf_names
   end
@@ -64,10 +76,13 @@ module Aai
     suffix = BLAST_DB_SUFFIX
     outfiles = fnames.map { |fname| fname + suffix }
 
-    title = "Making blast databases"
-    cmd = %Q{parallel "makeblastdb -in {} -out {}#{BLAST_DB_SUFFIX} -dbtype prot" ::: #{fnames.join " "}}
+    Time.time_it "Making blast databases" do
+      Parallel.each(fnames) do |fname|
+        cmd = "makeblastdb -in #{fname} -out #{fname}#{BLAST_DB_SUFFIX} -dbtype prot"
 
-    Process.run_and_time_it! title, cmd
+        Process.run_it! cmd
+      end
+    end
 
     outfiles
   end
