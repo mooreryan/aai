@@ -21,7 +21,7 @@ module Aai
   EVALUE_CUTOFF = 1e-3
   LENGTH_CUTOFF = 70 # actually is 70 percent
 
-  def blast_permutations! fastas, blast_dbs
+  def blast_permutations! fastas, blast_dbs, cpus=4
     file_permutations = one_way_combinations fastas, blast_dbs, true
     file_permutations = file_permutations.select do |f1, f2|
       genome_from_fname(f1) != genome_from_fname(f2)
@@ -54,7 +54,7 @@ module Aai
     end
 
     Time.time_it "Running blast jobs" do
-      Parallel.each(parallel_args) do |infiles|
+      Parallel.each(parallel_args, in_processes: cpus) do |infiles|
         query = infiles[0]
         db    = infiles[1]
         out   = infiles[2]
@@ -70,14 +70,15 @@ module Aai
   # Make blast dbs given an array of filenames.
   #
   # @param fnames [Array<String>] an array of filenames
+  # @param cpus [Integer] number of cpus to use
   #
   # @return [Array<String>] blast db basenames
-  def make_blastdbs! fnames
+  def make_blastdbs! fnames, cpus=4
     suffix = BLAST_DB_SUFFIX
     outfiles = fnames.map { |fname| fname + suffix }
 
     Time.time_it "Making blast databases" do
-      Parallel.each(fnames) do |fname|
+      Parallel.each(fnames, in_processes: cpus) do |fname|
         cmd = "makeblastdb -in #{fname} -out #{fname}#{BLAST_DB_SUFFIX} -dbtype prot"
 
         Process.run_it! cmd

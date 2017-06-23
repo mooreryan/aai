@@ -33,6 +33,7 @@ opts = Trollop.options do
   Options:
   EOS
 
+  opt(:cpus, "Number of CPUs to use", type: :integer, default: 1)
   opt(:infiles, "Input files", type: :strings)
   opt(:outdir, "Output directory", type: :string, default: ".")
   opt(:basename, "Base name for output file", type: :string,
@@ -52,9 +53,12 @@ FileUtils.mkdir_p opts[:outdir]
 
 seq_lengths, clean_fnames = Aai.process_input_seqs! opts[:infiles]
 
-blast_db_basenames = Aai.make_blastdbs! clean_fnames
+blast_db_basenames = Aai.make_blastdbs! clean_fnames,
+                                        opts[:cpus]
 
-btabs = Aai.blast_permutations! clean_fnames, blast_db_basenames
+btabs = Aai.blast_permutations! clean_fnames,
+                                blast_db_basenames,
+                                opts[:cpus]
 
 best_hits = Aai.get_best_hits btabs, seq_lengths
 
