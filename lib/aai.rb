@@ -287,8 +287,7 @@ module Aai
     end
 
     aai_strings.map do |genome_pair, aais|
-      [genome_pair.join("----"),
-       aais.join("\t")].join "\t"
+      [genome_pair, aais].flatten.join "\t"
     end
   end
 

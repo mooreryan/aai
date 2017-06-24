@@ -223,7 +223,7 @@ RSpec.describe Aai do
 
   describe "#aai_strings" do
     it "prints the aai info" do
-      aai_string = [["g1----g2", 90, 95, 95].join("\t")]
+      aai_string = [["g1", "g2", 90, 95, 95].join("\t")]
 
       expect(klass.aai_strings one_way_aai, two_way_aai).
         to eq aai_string

@@ -102,23 +102,30 @@ Time.time_it "Writing score file", AbortIf.logger do
   FileUtils.mkdir_p score_dir
   outf = File.join score_dir, "#{opts[:basename]}.aai.txt"
   File.open(outf, "w") do |f|
+    f.puts %w[genome_A genome_B A_to_B_aai B_to_A_aai two_way_aai].
+            join "\t"
+
     Aai.aai_strings(one_way, two_way).each do |str|
       f.puts str
     end
   end
 end
 
-AbortIf.logger.info { "Cleaning up" }
+Time.time_it "Cleaning up", AbortIf.logger do
+  blast_db_dir = File.join opts[:outdir], "blastdbs"
+  btab_dir = File.join opts[:outdir], "btabs"
+  clean_fasta_dir = File.join opts[:outdir], "clean_fastas"
 
-blast_db_dir = File.join opts[:outdir], "blastdbs"
-btab_dir = File.join opts[:outdir], "btabs"
-clean_fasta_dir = File.join opts[:outdir], "clean_fastas"
+  FileUtils.mkdir_p [blast_db_dir, btab_dir, clean_fasta_dir]
 
-FileUtils.mkdir_p [blast_db_dir, btab_dir, clean_fasta_dir]
+  AbortIf.logger.debug { "Moving clean fastas" }
+  move_files clean_fnames, clean_fasta_dir
 
-move_files clean_fnames, clean_fasta_dir
-move_files btabs, btab_dir
+  AbortIf.logger.debug { "Moving btabs" }
+  move_files btabs, btab_dir
 
-blast_db_basenames.each do |basename|
-  move_files Dir.glob("#{basename}*"), blast_db_dir
+  AbortIf.logger.debug { "Moving blast dbs" }
+  blast_db_basenames.each do |basename|
+    move_files Dir.glob("#{basename}*"), blast_db_dir
+  end
 end
