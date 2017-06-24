@@ -1,5 +1,9 @@
 module Aai
   module Utils
+    def clean_str str
+      str.strip.gsub(/[^\p{Alnum}_]+/, "_").gsub(/_+/, "_")
+    end
+
     # Raises SystemExit if one of the fnames does not exist.
     def check_files fnames
       fnames.each do |fname|

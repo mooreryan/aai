@@ -4,3 +4,5 @@ ACTGGTAGCTACGTCAGTACGACTGCATGCATCAGTCAGTACGCATAGCTAGTCGCATGACTAGT
 aaaaaaaaaaaaaaatatttattatatatctacctactactactatactatagatgatgtaatga
 >g1 o3
 ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
+>this bad seq shouldn't be included
+No sequence found

@@ -99,18 +99,16 @@ RSpec.describe Aai do
   end
 
   before :each do
-    delete_all Dir.glob(File.join(SpecHelper::TEST_DIR, "*....aai.p*"))
-    delete_all SpecHelper::CLEAN_FNAMES
-    delete_all SpecHelper::BTAB_FILES
+    delete_all Dir.glob(File.join(SpecHelper::TEST_DIR, "*aai*"))
   end
 
   after :each do
-    delete_all Dir.glob(File.join(SpecHelper::TEST_DIR, "*....aai.p*"))
-    delete_all SpecHelper::BLAST_DBS
-    delete_all SpecHelper::CLEAN_FNAMES
-    delete_all SpecHelper::BTAB_FILES
+    delete_all Dir.glob(File.join(SpecHelper::TEST_DIR, "*aai*"))
+
   end
 
+  # TODO with DIAMOND, none of the sequences in the example files
+  # actually have significant hits. (It's because of the masking.)
   describe "#blast_permutations!" do
     it "blasts all permutations of infiles" do
       seq_lengths, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
@@ -124,7 +122,7 @@ RSpec.describe Aai do
     end
 
     it "doesn't do self blasts" do
-      seq_lenghts, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
+      seq_lengths, clean_fnames = klass.process_input_seqs! SpecHelper::IN_FNAMES
 
       blast_db_basenames = klass.make_blastdbs! clean_fnames
 
@@ -150,7 +148,10 @@ RSpec.describe Aai do
 
   describe "#make_blastdbs!" do
     it "makes a blast db for each infile" do
-      blast_db_basenames = klass.make_blastdbs! SpecHelper::IN_FNAMES
+      seq_lengths, clean_fnames =
+                   klass.process_input_seqs! SpecHelper::IN_FNAMES
+
+      blast_db_basenames = klass.make_blastdbs! clean_fnames
 
       outfiles = blast_db_basenames.map do |fname|
         "#{fname}.dmnd"
@@ -160,8 +161,11 @@ RSpec.describe Aai do
     end
 
     it "returns the blast db basenames" do
-      expect(klass.make_blastdbs! SpecHelper::IN_FNAMES).
-        to eq SpecHelper::IN_FNAMES.map { |fname| fname + "....aai" }
+      seq_lengths, clean_fnames =
+                   klass.process_input_seqs! SpecHelper::IN_FNAMES
+
+      expect(klass.make_blastdbs! clean_fnames).
+        to eq clean_fnames.map { |fname| fname + "....aai" }
     end
   end
 

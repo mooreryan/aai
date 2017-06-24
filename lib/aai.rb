@@ -21,11 +21,16 @@ module Aai
   EVALUE_CUTOFF = 1e-3
   LENGTH_CUTOFF = 70 # actually is 70 percent
 
+  # If a blast job fails, it will retry once. If it fails again, it
+  # will be ignored by the rest of the pipeline.
   def blast_permutations! fastas, blast_dbs, cpus=4
     file_permutations = one_way_combinations fastas, blast_dbs, true
     file_permutations = file_permutations.select do |f1, f2|
       genome_from_fname(f1) != genome_from_fname(f2)
     end
+
+    completed_outf_names = []
+    failed_jobs = []
 
     first_files = file_permutations.map(&:first)
     second_files = file_permutations.map(&:last)
@@ -49,23 +54,61 @@ module Aai
       "#{f1}____#{f2}.aai_blastp"
     end
 
-    parallel_args = first_files.length.times.map do |idx|
+    args = first_files.length.times.map do |idx|
       [first_files[idx], second_files[idx], outf_names[idx]]
     end
 
     Time.time_it "Running blast jobs" do
-      Parallel.each(parallel_args, in_processes: cpus) do |infiles|
+      args.each_with_index do |infiles, idx|
         query = infiles[0]
         db    = infiles[1]
         out   = infiles[2]
 
-        # cmd = "blastp -outfmt 6 -query #{query} -db #{db} -out #{out} -evalue #{EVALUE_CUTOFF}"
-        cmd = "diamond blastp --threads 1 --outfmt 6 --query #{query} --db #{db} --out #{out} --evalue #{EVALUE_CUTOFF}"
-        Process.run_it! cmd
+        cmd = "diamond blastp --threads #{cpus} --outfmt 6 " +
+              "--query #{query} --db #{db} --out #{out} " +
+              "--evalue #{EVALUE_CUTOFF}"
+
+        exit_status = Process.run_it cmd
+
+        if exit_status.zero?
+          completed_outf_names << out
+        else
+          failed_jobs << idx
+          AbortIf.logger.warn { "Blast job failed. Non-zero exit status " +
+                                "(#{exit_status}) " +
+                                "when running '#{cmd}'. " +
+                                "Will retry at end." }
+        end
       end
     end
 
-    outf_names
+    if failed_jobs.count > 0
+      Time.time_it "Retrying failed blast jobs" do
+        # retry failed jobs once
+        failed_jobs.each do |idx|
+          query = args[idx][0]
+          db    = args[idx][1]
+          out   = args[idx][2]
+
+          cmd = "diamond blastp --threads #{cpus} --outfmt 6 " +
+                "--query #{query} --db #{db} --out #{out} " +
+                "--evalue #{EVALUE_CUTOFF}"
+
+          exit_status = Process.run_it cmd
+
+          if exit_status.zero?
+            completed_outf_names << out
+          else
+            AbortIf.logger.error { "Retrying blast job failed. " +
+                                   "Non-zero exit status " +
+                                   "(#{exit_status}) " +
+                                   "when running '#{cmd}'." }
+          end
+        end
+      end
+    end
+
+    completed_outf_names
   end
 
   # Make blast dbs given an array of filenames.
@@ -79,9 +122,9 @@ module Aai
     outfiles = fnames.map { |fname| fname + suffix }
 
     Time.time_it "Making blast databases" do
-      Parallel.each(fnames, in_processes: cpus) do |fname|
-        # cmd = "makeblastdb -in #{fname} -out #{fname}#{BLAST_DB_SUFFIX} -dbtype prot"
-        cmd = "diamond makedb --threads 1 --in #{fname} --db #{fname}#{BLAST_DB_SUFFIX}"
+      fnames.each do |fname|
+        cmd = "diamond makedb --threads #{cpus} --in #{fname} " +
+              "--db #{fname}#{BLAST_DB_SUFFIX}"
 
         Process.run_it! cmd
       end
@@ -105,13 +148,15 @@ module Aai
       clean_fnames << clean_fname
       File.open(clean_fname, "w") do |f|
         Object::ParseFasta::SeqFile.open(fname).each_record do |rec|
-          header =
-            annotate_header clean_header(rec.header),
-                            File.basename(fname)
+          unless bad_seq? rec.seq
+            header =
+              annotate_header clean_header(rec.header),
+                              File.basename(fname)
 
-          seq_lengths[header] = rec.seq.length
+            seq_lengths[header] = rec.seq.length
 
-          f.puts ">#{header}\n#{rec.seq}"
+            f.puts ">#{header}\n#{rec.seq}"
+          end
         end
       end
     end
@@ -270,6 +315,13 @@ module Aai
   end
 
   private
+
+  # this is to account for the weird IMG error. Some seqs will
+  # not have an actual protein, rather it will be "No sequence
+  # found"
+  def bad_seq? seq
+    seq.downcase.include? "nosequencefound"
+  end
 
   def two_way_hit? hit1, hit2
     hit1[:query_name] == hit2[:target_name] &&

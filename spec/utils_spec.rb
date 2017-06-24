@@ -4,6 +4,14 @@ RSpec.describe Aai::Utils do
   let(:klass) { Class.extend Aai::Utils }
   let(:exit_error) { SystemExit }
 
+  describe "#clean_str" do
+    it "changes all non alphanumeric characters to an _" do
+      str = "  a#%@p$#%@p.,/l]['    e   %   "
+
+      expect(klass.clean_str str).to eq "a_p_p_l_e_"
+    end
+  end
+
   describe "#check_files" do
     it "raises if one of the files doesn't exist" do
       fnames = [SpecHelper::G1_FNAME, "apple.txt"]
