@@ -1,6 +1,5 @@
 require "abort_if"
 require "systemu"
-require "parallel"
 require "parse_fasta"
 
 require "aai/core_extensions"
