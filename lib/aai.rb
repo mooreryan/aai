@@ -1,5 +1,6 @@
 require "abort_if"
 require "systemu"
+require "parallel"
 require "parse_fasta"
 
 require "aai/core_extensions"
@@ -20,16 +21,11 @@ module Aai
   EVALUE_CUTOFF = 1e-3
   LENGTH_CUTOFF = 70 # actually is 70 percent
 
-  # If a blast job fails, it will retry once. If it fails again, it
-  # will be ignored by the rest of the pipeline.
   def blast_permutations! fastas, blast_dbs, cpus=4
     file_permutations = one_way_combinations fastas, blast_dbs, true
     file_permutations = file_permutations.select do |f1, f2|
       genome_from_fname(f1) != genome_from_fname(f2)
     end
-
-    completed_outf_names = []
-    failed_jobs = []
 
     first_files = file_permutations.map(&:first)
     second_files = file_permutations.map(&:last)
@@ -58,56 +54,58 @@ module Aai
     end
 
     Time.time_it "Running blast jobs" do
-      args.each_with_index do |infiles, idx|
+      Parallel.each(args, in_processes: cpus) do |infiles|
         query = infiles[0]
         db    = infiles[1]
         out   = infiles[2]
 
-        cmd = "diamond blastp --threads #{cpus} --outfmt 6 " +
+        cmd = "diamond blastp --threads 1 --outfmt 6 " +
               "--query #{query} --db #{db} --out #{out} " +
               "--evalue #{EVALUE_CUTOFF}"
 
-        exit_status = Process.run_it cmd
+        Process.run_it! cmd
 
-        if exit_status.zero?
-          completed_outf_names << out
-        else
-          failed_jobs << idx
-          AbortIf.logger.warn { "Blast job failed. Non-zero exit status " +
-                                "(#{exit_status}) " +
-                                "when running '#{cmd}'. " +
-                                "Will retry at end." }
-        end
+        # if exit_status.zero?
+        #   completed_outf_names << out
+        # else
+        #   failed_jobs << idx
+        #   AbortIf.logger.warn { "Blast job failed. Non-zero exit status " +
+        #                         "(#{exit_status}) " +
+        #                         "when running '#{cmd}'. " +
+        #                         "Will retry at end." }
+        # end
+
+        # [completed_outf_names, failed_jobs]
       end
     end
 
-    if failed_jobs.count > 0
-      Time.time_it "Retrying failed blast jobs" do
-        # retry failed jobs once
-        failed_jobs.each do |idx|
-          query = args[idx][0]
-          db    = args[idx][1]
-          out   = args[idx][2]
+    # if failed_jobs.count > 0
+    #   Time.time_it "Retrying failed blast jobs" do
+    #     # retry failed jobs once
+    #     Parallel.each(failed_jobs, in_processes: cpus) do |idx|
+    #       query = args[idx][0]
+    #       db    = args[idx][1]
+    #       out   = args[idx][2]
 
-          cmd = "diamond blastp --threads #{cpus} --outfmt 6 " +
-                "--query #{query} --db #{db} --out #{out} " +
-                "--evalue #{EVALUE_CUTOFF}"
+    #       cmd = "diamond blastp --threads #{cpus} --outfmt 6 " +
+    #             "--query #{query} --db #{db} --out #{out} " +
+    #             "--evalue #{EVALUE_CUTOFF}"
 
-          exit_status = Process.run_it cmd
+    #       exit_status = Process.run_it cmd
 
-          if exit_status.zero?
-            completed_outf_names << out
-          else
-            AbortIf.logger.error { "Retrying blast job failed. " +
-                                   "Non-zero exit status " +
-                                   "(#{exit_status}) " +
-                                   "when running '#{cmd}'." }
-          end
-        end
-      end
-    end
+    #       if exit_status.zero?
+    #         completed_outf_names << out
+    #       else
+    #         AbortIf.logger.error { "Retrying blast job failed. " +
+    #                                "Non-zero exit status " +
+    #                                "(#{exit_status}) " +
+    #                                "when running '#{cmd}'." }
+    #       end
+    #     end
+    #   end
+    # end
 
-    completed_outf_names
+    outf_names
   end
 
   # Make blast dbs given an array of filenames.
@@ -121,8 +119,8 @@ module Aai
     outfiles = fnames.map { |fname| fname + suffix }
 
     Time.time_it "Making blast databases" do
-      fnames.each do |fname|
-        cmd = "diamond makedb --threads #{cpus} --in #{fname} " +
+      Parallel.each(fnames, in_processes: cpus) do |fname|
+        cmd = "diamond makedb --threads 1 --in #{fname} " +
               "--db #{fname}#{BLAST_DB_SUFFIX}"
 
         Process.run_it! cmd

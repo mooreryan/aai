@@ -1,5 +1,5 @@
 module Aai
-  VERSION = "0.4.0"
+  VERSION = "0.5.0"
   COPYRIGHT = "2017 Ryan Moore"
   CONTACT   = "moorer@udel.edu"
   WEBSITE   = "https://github.com/mooreryan/aai"
