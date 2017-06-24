@@ -53,18 +53,16 @@ module Aai
       [first_files[idx], second_files[idx], outf_names[idx]]
     end
 
-    Time.time_it "Running blast jobs" do
-      Parallel.each(args, in_processes: cpus) do |infiles|
-        query = infiles[0]
-        db    = infiles[1]
-        out   = infiles[2]
+    Parallel.each(args, in_processes: cpus) do |infiles|
+      query = infiles[0]
+      db    = infiles[1]
+      out   = infiles[2]
 
-        cmd = "diamond blastp --threads 1 --outfmt 6 " +
-              "--query #{query} --db #{db} --out #{out} " +
-              "--evalue #{EVALUE_CUTOFF}"
+      cmd = "diamond blastp --threads 1 --outfmt 6 " +
+            "--query #{query} --db #{db} --out #{out} " +
+            "--evalue #{EVALUE_CUTOFF}"
 
-        Process.run_and_time_it! "Diamond blast", cmd
-      end
+      Process.run_and_time_it! "Diamond blast", cmd
     end
 
     outf_names
@@ -80,13 +78,11 @@ module Aai
     suffix = BLAST_DB_SUFFIX
     outfiles = fnames.map { |fname| fname + suffix }
 
-    Time.time_it "Making blast databases" do
-      Parallel.each(fnames, in_processes: cpus) do |fname|
-        cmd = "diamond makedb --threads 1 --in #{fname} " +
-              "--db #{fname}#{BLAST_DB_SUFFIX}"
+    Parallel.each(fnames, in_processes: cpus) do |fname|
+      cmd = "diamond makedb --threads 1 --in #{fname} " +
+            "--db #{fname}#{BLAST_DB_SUFFIX}"
 
-        Process.run_and_time_it! "Make db", cmd
-      end
+      Process.run_and_time_it! "Make db", cmd
     end
 
     outfiles
@@ -125,7 +121,14 @@ module Aai
 
   def get_best_hits fnames, seq_lengths
     best_hits = {}
-    fnames.each do |fname| # blast files
+    num_fnames = fnames.count
+    log_every = num_fnames > 10 ? num_fnames / 10 : 1
+    fnames.each_with_index do |fname, idx| # blast files
+      if (idx % log_every).zero?
+        AbortIf.logger.debug { "Working on blastp file " +
+                               "##{idx} of #{num_fnames}"}
+      end
+
       File.open(fname, "rt").each_line do |line|
         ary = line.chomp.split "\t"
 
@@ -217,7 +220,14 @@ module Aai
     one_way_hits = one_way_best_hits best_hits
     genome_pair_keys = one_way_hits.keys.map { |pair| pair.sort }.uniq
 
-    genome_pair_keys.each do |pair_key|
+    num_genome_pairs = genome_pair_keys.count
+    log_every = num_genome_pairs > 10 ? num_genome_pairs / 10 : 1
+    genome_pair_keys.each_with_index do |pair_key, idx|
+      if (idx % log_every).zero?
+        AbortIf.logger.debug { "Working on genome pair ##{idx} of " +
+                               "#{num_genome_pairs}" }
+      end
+
       if one_way_hits.has_key?(pair_key) &&
          one_way_hits.has_key?(pair_key.reverse)
 
