@@ -12,6 +12,7 @@ include AbortIf::Assert
 
 Aai.extend Aai
 Aai.extend Aai::Utils
+Time.extend Aai::CoreExtensions::Time
 
 def move_files fnames, dest
   fnames.each do |fname|
@@ -41,7 +42,7 @@ opts = Trollop.options do
 end
 
 abort_if opts[:infiles].nil? || opts[:infiles].empty?,
-         "No infiles given"
+         "No infiles given. Try #{__FILE__} --help for help."
 
 Aai.check_command "blastp"
 Aai.check_command "makeblastdb"
@@ -49,33 +50,65 @@ Aai.check_command "parallel"
 
 Aai.check_files opts[:infiles]
 
+abort_if File.exists?(opts[:outdir]),
+         "#{opts[:outdir]} already exists. Choose a new outdir."
+
 FileUtils.mkdir_p opts[:outdir]
 
-seq_lengths, clean_fnames = Aai.process_input_seqs! opts[:infiles]
+seq_lengths = nil
+clean_fnames = nil
+blast_db_basenames = nil
+btabs = nil
+best_hits = nil
+one_way = nil
+two_way = nil
+aai_strings = nil
+score_dir = nil
+outf = nil
 
-blast_db_basenames = Aai.make_blastdbs! clean_fnames,
-                                        opts[:cpus]
+Time.time_it "Processing input seqs", AbortIf.logger do
+  seq_lengths, clean_fnames = Aai.process_input_seqs! opts[:infiles]
+end
 
-btabs = Aai.blast_permutations! clean_fnames,
-                                blast_db_basenames,
-                                opts[:cpus]
+Time.time_it "Making blast databases", AbortIf.logger do
+  blast_db_basenames = Aai.make_blastdbs! clean_fnames,
+                                          opts[:cpus]
+end
 
-best_hits = Aai.get_best_hits btabs, seq_lengths
+Time.time_it "Running blast jobs", AbortIf.logger do
+  btabs = Aai.blast_permutations! clean_fnames,
+                                  blast_db_basenames,
+                                  opts[:cpus]
+end
 
-one_way = Aai.one_way_aai best_hits
+Time.time_it "Getting best hits", AbortIf.logger do
+  best_hits = Aai.get_best_hits btabs, seq_lengths
+end
 
-two_way = Aai.two_way_aai best_hits
+Time.time_it "Getting one way hits", AbortIf.logger do
+  one_way = Aai.one_way_aai best_hits
+end
 
-aai_strings = Aai.aai_strings one_way, two_way
+Time.time_it "Getting two way hits", AbortIf.logger do
+  two_way = Aai.two_way_aai best_hits
+end
 
-score_dir = File.join opts[:outdir], "aai_scores"
-FileUtils.mkdir_p score_dir
-outf = File.join score_dir, "#{opts[:basename]}.aai.txt"
-File.open(outf, "w") do |f|
-  Aai.aai_strings(one_way, two_way).each do |str|
-    f.puts str
+Time.time_it "Making aai strings", AbortIf.logger do
+  aai_strings = Aai.aai_strings one_way, two_way
+end
+
+Time.time_it "Writing score file", AbortIf.logger do
+  score_dir = File.join opts[:outdir], "aai_scores"
+  FileUtils.mkdir_p score_dir
+  outf = File.join score_dir, "#{opts[:basename]}.aai.txt"
+  File.open(outf, "w") do |f|
+    Aai.aai_strings(one_way, two_way).each do |str|
+      f.puts str
+    end
   end
 end
+
+AbortIf.logger.info { "Cleaning up" }
 
 blast_db_dir = File.join opts[:outdir], "blastdbs"
 btab_dir = File.join opts[:outdir], "btabs"

@@ -63,47 +63,9 @@ module Aai
               "--query #{query} --db #{db} --out #{out} " +
               "--evalue #{EVALUE_CUTOFF}"
 
-        Process.run_it! cmd
-
-        # if exit_status.zero?
-        #   completed_outf_names << out
-        # else
-        #   failed_jobs << idx
-        #   AbortIf.logger.warn { "Blast job failed. Non-zero exit status " +
-        #                         "(#{exit_status}) " +
-        #                         "when running '#{cmd}'. " +
-        #                         "Will retry at end." }
-        # end
-
-        # [completed_outf_names, failed_jobs]
+        Process.run_and_time_it! "Diamond blast", cmd
       end
     end
-
-    # if failed_jobs.count > 0
-    #   Time.time_it "Retrying failed blast jobs" do
-    #     # retry failed jobs once
-    #     Parallel.each(failed_jobs, in_processes: cpus) do |idx|
-    #       query = args[idx][0]
-    #       db    = args[idx][1]
-    #       out   = args[idx][2]
-
-    #       cmd = "diamond blastp --threads #{cpus} --outfmt 6 " +
-    #             "--query #{query} --db #{db} --out #{out} " +
-    #             "--evalue #{EVALUE_CUTOFF}"
-
-    #       exit_status = Process.run_it cmd
-
-    #       if exit_status.zero?
-    #         completed_outf_names << out
-    #       else
-    #         AbortIf.logger.error { "Retrying blast job failed. " +
-    #                                "Non-zero exit status " +
-    #                                "(#{exit_status}) " +
-    #                                "when running '#{cmd}'." }
-    #       end
-    #     end
-    #   end
-    # end
 
     outf_names
   end
@@ -123,7 +85,7 @@ module Aai
         cmd = "diamond makedb --threads 1 --in #{fname} " +
               "--db #{fname}#{BLAST_DB_SUFFIX}"
 
-        Process.run_it! cmd
+        Process.run_and_time_it! "Make db", cmd
       end
     end
 
@@ -256,34 +218,43 @@ module Aai
     genome_pair_keys = one_way_hits.keys.map { |pair| pair.sort }.uniq
 
     genome_pair_keys.each do |pair_key|
-      AbortIf.abort_unless one_way_hits.has_key?(pair_key) &&
-                           one_way_hits.has_key?(pair_key.reverse),
-                           "Missing keys for #{pair_key}"
+      if one_way_hits.has_key?(pair_key) &&
+         one_way_hits.has_key?(pair_key.reverse)
 
-      forward_hits = one_way_hits[pair_key]
-      reverse_hits = one_way_hits[pair_key.reverse]
+        forward_hits = one_way_hits[pair_key]
+        reverse_hits = one_way_hits[pair_key.reverse]
 
-      combinations = one_way_combinations forward_hits, reverse_hits
+        combinations = one_way_combinations forward_hits, reverse_hits
 
-      two_way_hits = combinations.select do |h1, h2|
-        two_way_hit? h1, h2
-      end
-
-      two_way_hit_info = two_way_hits.map do |h1, h2|
-        { genome_pair: [h1[:query_genome],
-                        h1[:target_genome]].sort,
-          pident: (h1[:pident] + h2[:pident]) / 2.0 }
-      end
-
-      two_way_hit_info.each do |hit|
-        if two_way_aai.has_key? hit[:genome_pair]
-          two_way_aai[hit[:genome_pair]] << hit[:pident]
-        else
-          two_way_aai[hit[:genome_pair]] = [hit[:pident]]
+        two_way_hits = combinations.select do |h1, h2|
+          two_way_hit? h1, h2
         end
+
+        two_way_hit_info = two_way_hits.map do |h1, h2|
+          { genome_pair: [h1[:query_genome],
+                          h1[:target_genome]].sort,
+            pident: (h1[:pident] + h2[:pident]) / 2.0 }
+        end
+
+        two_way_hit_info.each do |hit|
+          if two_way_aai.has_key? hit[:genome_pair]
+            two_way_aai[hit[:genome_pair]] << hit[:pident]
+          else
+            two_way_aai[hit[:genome_pair]] = [hit[:pident]]
+          end
+        end
+      elsif !one_way_hits.has_key?(pair_key)
+        AbortIf.logger.warn { "No pair info for #{pair_key}. " +
+                              "No two way hits possible " +
+                              "for #{pair_key}." }
+      elsif !one_way_hits.has_key?(pair_key.reverse)
+        AbortIf.logger.warn { "No pair info for #{pair_key.reverse}. " +
+                              "No two way hits possible " +
+                              "for #{pair_key}." }
       end
     end
 
+    # outside of genome_pair_keys.each
     two_way_aai.map do |genome_pair, pidents|
       [genome_pair, pidents.reduce(:+) / pidents.length.to_f]
     end.to_h
