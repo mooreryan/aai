@@ -12,3 +12,5 @@
 .rspec_status
 .ruby-version
 .ruby-gemset
+
+exe/3_col_to_sim_matrix_norm.rb

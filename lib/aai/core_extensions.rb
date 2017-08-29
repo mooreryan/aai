@@ -37,15 +37,17 @@ module Aai
         puts stdout unless stdout.empty?
         $stderr.puts stderr unless stderr.empty?
 
-        exit_status.exitstatus
+        exit_status
       end
 
       def run_it! *a, &b
         exit_status = self.run_it *a, &b
 
-        AbortIf.abort_unless exit_status.zero?,
-                             "Non-zero exit status " +
-                             "(#{exit_status}) " +
+        # Sometimes, exited? is not true and there will be no exit
+        # status. Success should catch all failures.
+        AbortIf.abort_unless exit_status.success?,
+                             "Command failed with status " +
+                             "'#{exit_status.to_s}' " +
                              "when running '#{a.inspect}', " +
                              "'#{b.inspect}'"
 
