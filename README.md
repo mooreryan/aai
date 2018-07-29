@@ -40,8 +40,16 @@ And then execute:
 
 ### Example
 
+After installing with `gem install` then the `aai` program should be available to you.  Try and get the help page:
+
 ```
-$ ruby exe/aai.rb --infiles *.fa --outdir aai_output
+$ aai --help
+```
+
+Then run the program like this:
+
+```
+$ aai --infiles *.fa --outdir aai_output
 ```
 
 ### Options
