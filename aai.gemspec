@@ -31,5 +31,5 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "parallel", "~> 1.6", ">= 1.6.1"
   spec.add_runtime_dependency "parse_fasta", "~> 2.2"
   spec.add_runtime_dependency "systemu", "~> 2.6", ">= 2.6.5"
-  spec.add_runtime_dependency "trollop", "~> 2.1", ">= 2.1.2"
+  spec.add_runtime_dependency "optimist", "~> 3.0"
 end

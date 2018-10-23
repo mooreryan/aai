@@ -5,7 +5,7 @@ Signal.trap("PIPE", "EXIT")
 require "aai"
 require "abort_if"
 require "fileutils"
-require "trollop"
+require "optimist"
 
 include AbortIf
 include AbortIf::Assert
@@ -20,7 +20,7 @@ def move_files fnames, dest
   end
 end
 
-opts = Trollop.options do
+opts = Optimist.options do
   version Aai::VERSION_BANNER
 
   banner <<-EOS
