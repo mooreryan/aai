@@ -52,6 +52,8 @@ Then run the program like this:
 $ aai --infiles *.fa --outdir aai_output
 ```
 
+Note: Each input file is treated as a file of ORFs (amino acid gene predictions) for a single genome.
+
 ### Options
 
 ```
